@@ -87,13 +87,13 @@ int main(int argc, const char *const *argv) {
   
   slice_num = pwm_gpio_to_slice_num(RIGHT_SIDE_PWM_PIN);
 
-  // --- RC SERVO PWM SETUP ---
-  // Pico default clock is 125 MHz. 
-  // We divide the clock by 125 to get a 1 MHz PWM clock (1 tick = 1 microsecond).
+  // --- 100 Hz RC SERVO PWM SETUP ---
+  // 1 tick = 1 microsecond
   pwm_set_clkdiv(slice_num, 125.0f);
   
-  // A standard RC signal runs at 50Hz (20ms period). 20,000 ticks = 20ms.
-  pwm_set_wrap(slice_num, 19999);
+  // 100 Hz = 10ms period. 10,000 ticks = 10ms.
+  // We set wrap to 9999 because it counts from 0.
+  pwm_set_wrap(slice_num, 9999);
 
   // Set Talon SRX to exactly Neutral (1.5ms pulse) on startup
   pwm_set_chan_level(slice_num, PWM_CHAN_A, 1500);
