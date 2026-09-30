@@ -13,8 +13,8 @@
 #include <rmw_microros/rmw_microros.h>
 #include <std_msgs/msg/int32.h>
 
-#define RIGHT_SIDE_PWM_PIN 10
-#define LEFT_SIDE_PWM_PIN 11
+#define RIGHT_SIDE_PWM_PIN 11
+#define LEFT_SIDE_PWM_PIN 9
 
 rcl_timer_t timer;
 rcl_node_t node;
@@ -23,7 +23,8 @@ rclc_support_t support;
 rclc_executor_t executor;
 rcl_subscription_t rightSubscriber;
 rcl_subscription_t leftSubscriber;
-uint slice_num = 0;
+uint right_slice_num = 0;
+uint left_slice_num = 0;
 int rightData = 0;
 
 rcl_publisher_t publisher;
@@ -47,15 +48,12 @@ void right_subscription_callback(const void *msgin) {
   if (percent < -100) percent = -100;
   if (percent > 100) percent = 100;
   
-  printf("Received Right: %d%%\n", percent);
+  // REMOVED: printf("Received Right: %d%%\n", percent);
   
-  // Convert -100 to 100 into standard RC PWM (1000us to 2000us)
-  // -100 * 5 = -500 -> 1500 - 500 = 1000us
-  //  100 * 5 =  500 -> 1500 + 500 = 2000us
   int pulse_us = 1500 + (percent * 5);
   
-  rightData = percent; // Save for the publisher timer
-  pwm_set_chan_level(slice_num, PWM_CHAN_A, pulse_us);
+  rightData = percent; 
+  pwm_set_chan_level(right_slice_num, PWM_CHAN_B, pulse_us);
 }
 
 void left_subscription_callback(const void *msgin) {
@@ -66,12 +64,13 @@ void left_subscription_callback(const void *msgin) {
   if (percent < -100) percent = -100;
   if (percent > 100) percent = 100;
   
-  printf("Received Left: %d%%\n", percent);
+  // REMOVED: printf("Received Left: %d%%\n", percent);
   
   // Convert -100 to 100 into standard RC PWM (1000us to 2000us)
   int pulse_us = 1500 + (percent * 5);
   
-  pwm_set_chan_level(slice_num, PWM_CHAN_B, pulse_us);
+  // CHANGE: PWM_CHAN_A -> PWM_CHAN_B
+  pwm_set_chan_level(left_slice_num, PWM_CHAN_B, pulse_us); 
 }
 
 int main(int argc, const char *const *argv) {
@@ -85,20 +84,27 @@ int main(int argc, const char *const *argv) {
   gpio_set_function(RIGHT_SIDE_PWM_PIN, GPIO_FUNC_PWM);
   gpio_set_function(LEFT_SIDE_PWM_PIN, GPIO_FUNC_PWM);
   
-  slice_num = pwm_gpio_to_slice_num(RIGHT_SIDE_PWM_PIN);
+  right_slice_num = pwm_gpio_to_slice_num(RIGHT_SIDE_PWM_PIN);
+  left_slice_num = pwm_gpio_to_slice_num(LEFT_SIDE_PWM_PIN);
 
   // --- 100 Hz RC SERVO PWM SETUP ---
   // 1 tick = 1 microsecond
-  pwm_set_clkdiv(slice_num, 125.0f);
+  pwm_set_clkdiv(right_slice_num, 125.0f);
+  pwm_set_clkdiv(left_slice_num, 125.0f);
   
   // 100 Hz = 10ms period. 10,000 ticks = 10ms.
   // We set wrap to 9999 because it counts from 0.
-  pwm_set_wrap(slice_num, 9999);
+  pwm_set_wrap(right_slice_num, 9999);
+  pwm_set_wrap(left_slice_num, 9999);
 
   // Set Talon SRX to exactly Neutral (1.5ms pulse) on startup
-  pwm_set_chan_level(slice_num, PWM_CHAN_A, 1500);
-  pwm_set_chan_level(slice_num, PWM_CHAN_B, 1500);
-  pwm_set_enabled(slice_num, true);
+  pwm_set_chan_level(right_slice_num, PWM_CHAN_B, 1500); // GPIO 10 is Chan A
+  
+  // CHANGE: PWM_CHAN_A -> PWM_CHAN_B
+  pwm_set_chan_level(left_slice_num, PWM_CHAN_B, 1500);  // GPIO 9 is Chan B
+  
+  pwm_set_enabled(right_slice_num, true);
+  pwm_set_enabled(left_slice_num, true);
 
   allocator = rcl_get_default_allocator();
 
